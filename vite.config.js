@@ -4,6 +4,13 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   base: '/phone/',
   plugins: [vue()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
+  },
   optimizeDeps: {
     include: ['tesseract.js']
   },
