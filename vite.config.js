@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
-  base: '/phone/',
+  base: './', // 使用相对路径，适用于根目录部署
   plugins: [vue()],
   build: {
     rollupOptions: {
