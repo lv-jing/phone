@@ -13,7 +13,7 @@ export default defineConfig({
   // 1. 是否部署了构建后的 dist 目录的内容（不是源代码目录）
   // 2. GitHub Pages 设置中源分支/目录是否正确（应该是 dist 或 gh-pages 分支的根目录）
   // 3. 确保部署的是 dist 目录内的所有文件，而不是 dist 目录本身
-  base: '/',
+  base: '/phone/',
   plugins: [vue()],
   optimizeDeps: {
     include: ['tesseract.js']
