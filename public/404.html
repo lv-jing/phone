@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - 页面未找到</title>
+    <script>
+      // GitHub Pages 404 处理 - 重定向到 index.html
+      // base 路径是 /phone/，所以需要保留 phone 这个路径段
+      var pathSegmentsToKeep = 1; // 保留 /phone
+      var l = window.location;
+      var basePath = '/phone';
+      
+      // 如果路径以 /phone 开头，重定向到 /phone/index.html
+      if (l.pathname.startsWith(basePath)) {
+        var path = l.pathname.slice(basePath.length) || '/';
+        l.replace(
+          l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+          basePath + '/index.html' + 
+          (path !== '/' ? '?/' + path.slice(1).replace(/&/g, '~and~') : '') +
+          (l.search ? (path === '/' ? '?' : '&') + l.search.slice(1).replace(/&/g, '~and~') : '') +
+          l.hash
+        );
+      } else {
+        // 如果不是 /phone 路径，直接重定向到 /phone/
+        l.replace(basePath + '/');
+      }
+    </script>
+  </head>
+  <body>
+    <p>正在重定向...</p>
+  </body>
+</html>
+
