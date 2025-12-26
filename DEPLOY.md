@@ -1,126 +1,155 @@
 # GitHub Pages 部署说明
 
-## 问题解决：main.js 404 错误
+## 部署方式：Deploy from a branch
 
-**原因**：`vite.config.js` 中的 `base` 路径配置不正确，导致资源文件路径错误。
+### 重要配置
 
-**已修复**：已将 `base` 设置为 `/phone/`，资源路径现在正确指向 `/phone/assets/...`
+- **Base 路径**：`/phone/`（在 `vite.config.js` 中配置）
+- **访问地址**：`https://你的用户名.github.io/phone/`
 
-## 部署步骤
+### 部署步骤
 
-### 方法一：Deploy from a branch（推荐）
+#### 方法一：部署到 gh-pages 分支的 /phone/ 目录（推荐）
 
 1. **构建项目**：
    ```bash
    yarn build
    ```
 
-2. **部署 dist 目录**：
-   - 如果使用 `gh-pages` 分支：
-     ```bash
-     # 切换到 gh-pages 分支或创建新分支
-     git checkout -b gh-pages
-     # 将 dist 目录的内容复制到根目录
-     cp -r dist/* .
-     git add .
-     git commit -m "Deploy to GitHub Pages"
-     git push origin gh-pages
-     ```
+2. **切换到 gh-pages 分支**（如果不存在则创建）：
+   ```bash
+   git checkout --orphan gh-pages
+   git rm -rf .
+   ```
+
+3. **将 dist 目录的内容复制到 phone 子目录**：
+   ```bash
+   # Windows PowerShell
+   mkdir phone
+   Copy-Item -Path dist\* -Destination phone\ -Recurse -Force
    
-   - 如果使用 `main` 分支的 `dist` 目录：
-     ```bash
-     # 构建后，在 GitHub 仓库设置中：
-     # Settings → Pages → Source 选择 "Deploy from a branch"
-     # Branch 选择 main，目录选择 /dist
-     ```
-
-3. **配置 GitHub Pages**：
-   - 进入仓库的 **Settings** → **Pages**
-   - **Source** 选择 "Deploy from a branch"
-   - **Branch** 选择你的部署分支（如 `gh-pages` 或 `main`）
-   - **Folder** 选择 `/`（如果部署在分支根目录）或 `/dist`（如果部署 dist 目录）
-
-4. **访问网站**：
-   ```
-   https://你的用户名.github.io/phone/
+   # 或者手动复制 dist 目录下的所有文件到 phone 目录
    ```
 
-## 重要配置说明
+4. **提交并推送**：
+   ```bash
+   git add phone/
+   git commit -m "Deploy to GitHub Pages"
+   git push origin gh-pages
+   ```
 
-### base 路径配置
+5. **在 GitHub 设置中**：
+   - 进入 Settings → Pages
+   - Source 选择 `gh-pages` 分支
+   - 访问：`https://你的用户名.github.io/phone/`
 
-在 `vite.config.js` 中，`base` 路径必须与你的 GitHub Pages 访问路径匹配：
+#### 方法二：部署到 gh-pages 分支的根目录
 
-- **如果仓库名是 `phone`**：`base: '/phone/'`
-- **如果仓库名是 `你的用户名.github.io`**（个人主页）：`base: '/'`
-- **如果部署在子目录**：`base: '/子目录名/'`
+如果要将 dist 内容直接部署到根目录，需要修改 base 配置：
 
-### 修改 base 路径
+1. **修改 `vite.config.js`**：
+   ```js
+   base: '/',  // 改为根路径
+   ```
 
-如果仓库名不是 `phone`，需要修改 `vite.config.js`：
+2. **重新构建**：
+   ```bash
+   yarn build
+   ```
 
-```javascript
-export default defineConfig({
-    base: '/你的仓库名/',  // 修改这里
-    // ... 其他配置
-})
-```
+3. **部署 dist 内容到 gh-pages 分支根目录**：
+   ```bash
+   git checkout --orphan gh-pages
+   git rm -rf .
+   git add dist/
+   git mv dist/* .
+   git commit -m "Deploy to GitHub Pages"
+   git push origin gh-pages
+   ```
 
-然后重新构建：
-```bash
-yarn build
-```
+4. **访问地址**：`https://你的用户名.github.io/`
 
-## 验证部署
+### 验证部署
 
 部署后检查：
 
-1. **访问网站**：`https://你的用户名.github.io/phone/`
+1. **访问页面**：打开 `https://你的用户名.github.io/phone/`
+2. **检查资源**：打开浏览器开发者工具（F12）
+   - 查看 Network 标签页，确认所有资源（JS、CSS、SVG）都返回 200 状态码
+   - 查看 Console 标签页，确认没有 404 错误
 
-2. **检查资源路径**：
-   - 打开浏览器开发者工具（F12）
-   - 查看 Network 标签页
-   - 确认 JS 和 CSS 文件能正常加载（状态码 200）
-   - 资源路径应该是：`/phone/assets/index-*.js` 和 `/phone/assets/index-*.css`
+3. **检查资源路径**：查看页面源代码，应该看到：
+   ```html
+   <script type="module" crossorigin src="/phone/assets/index-*.js"></script>
+   <link rel="stylesheet" crossorigin href="/phone/assets/index-*.css">
+   ```
 
-3. **检查控制台**：
-   - 不应该有 404 错误
-   - 不应该有 "Failed to load resource" 错误
+### 常见问题
 
-## 常见问题
+#### 问题：资源文件 404（main.js、vite.svg 等）
 
-### 问题 1：资源文件 404
+**原因**：base 路径配置与部署路径不匹配
 
-**原因**：`base` 路径配置不正确
+**解决方案**：
+1. 确认你的访问 URL：
+   - 如果是 `username.github.io/phone/` → base 应该是 `/phone/`
+   - 如果是 `username.github.io/` → base 应该是 `/`
 
-**解决**：
-1. 确认仓库名称
-2. 修改 `vite.config.js` 中的 `base` 路径
-3. 重新构建：`yarn build`
-4. 重新部署
+2. 检查 `vite.config.js` 中的 `base` 配置
 
-### 问题 2：页面空白
+3. 重新构建：
+   ```bash
+   yarn build
+   ```
 
-**原因**：可能是缓存问题或资源路径错误
+4. 检查 `dist/index.html` 中的资源路径是否正确
 
-**解决**：
-1. 清除浏览器缓存（Ctrl+Shift+R）
-2. 检查浏览器控制台的错误信息
-3. 确认资源文件路径是否正确
+#### 问题：页面空白
 
-### 问题 3：本地正常，GitHub Pages 不正常
+1. 打开浏览器开发者工具（F12）
+2. 查看 Console 标签页的错误信息
+3. 查看 Network 标签页，确认资源是否正确加载
+4. 清除浏览器缓存后重试
 
-**原因**：本地开发使用 `/` 路径，但 GitHub Pages 使用 `/phone/` 路径
+#### 问题：部署后还是旧版本
 
-**解决**：
-- 确保 `vite.config.js` 中的 `base` 设置为 `/phone/`
-- 使用 `yarn preview` 本地预览生产构建，验证路径是否正确
+1. 清除浏览器缓存：`Ctrl+Shift+R`（Windows）或 `Cmd+Shift+R`（Mac）
+2. 检查 GitHub Pages 部署是否完成（Settings → Pages 中查看）
+3. 确认推送了最新的构建文件
 
-## 部署检查清单
+### 快速部署脚本（Windows PowerShell）
 
-- [ ] `vite.config.js` 中 `base` 路径正确
-- [ ] 已运行 `yarn build` 构建项目
-- [ ] `dist` 目录包含所有必要文件（index.html, assets/, vite.svg）
-- [ ] GitHub Pages 设置正确（分支和目录）
-- [ ] 资源路径包含正确的 base 前缀（如 `/phone/assets/...`）
+创建 `deploy.ps1` 文件：
+
+```powershell
+# 构建项目
+yarn build
+
+# 切换到 gh-pages 分支
+git checkout gh-pages 2>$null
+if ($LASTEXITCODE -ne 0) {
+    git checkout --orphan gh-pages
+    git rm -rf .
+}
+
+# 创建 phone 目录并复制文件
+if (Test-Path phone) {
+    Remove-Item -Path phone -Recurse -Force
+}
+New-Item -ItemType Directory -Path phone
+Copy-Item -Path dist\* -Destination phone\ -Recurse -Force
+
+# 提交并推送
+git add phone/
+git commit -m "Deploy to GitHub Pages"
+git push origin gh-pages
+
+# 切换回主分支
+git checkout main
+```
+
+运行：
+```powershell
+.\deploy.ps1
+```
 
