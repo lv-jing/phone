@@ -1,105 +1,120 @@
 <template>
   <div class="ocr-container">
-    <div class="ocr-layout">
-      <!-- 左侧：上传和识别区域 -->
-      <div class="ocr-left-panel">
-        <div class="ocr-card">
-          <!-- 文件上传区域 -->
-          <div 
-            class="upload-zone"
-            :class="{ 'drag-over': isDragOver }"
-            @dragover.prevent="isDragOver = true"
-            @dragleave.prevent="isDragOver = false"
-            @drop.prevent="handleDrop"
-            @click="selectFile"
-          >
-            <input 
-              ref="fileInput"
-              type="file"
-              accept="image/*"
-              @change="handleFileChange"
-              style="display: none"
-            />
-            
-            <div v-if="!currentImage" class="upload-placeholder">
-              <div class="upload-icon">📁</div>
-              <p class="upload-text">点击选择图片或拖拽图片到此处</p>
-              <p class="upload-hint">支持 JPG、PNG、GIF、WEBP 等格式</p>
-            </div>
-            
-            <div v-else class="image-container">
-              <img :src="currentImage" alt="待识别图片" class="preview-image" />
-              <button class="close-btn" @click.stop="clearImage">✕</button>
-            </div>
-          </div>
+    <div class="ocr-card">
+      <h1 class="title">图片文字识别</h1>
+      <p class="subtitle">上传图片，自动识别其中的所有文字、数字、符号和空格</p>
 
-          <!-- 操作按钮 -->
-          <div v-if="currentImage" class="button-group">
-            <button 
-              class="btn btn-primary"
-              :disabled="isRecognizing || !workerReady"
-              @click="startRecognition"
-            >
-              <span v-if="!isRecognizing">🔍 开始识别</span>
-              <span v-else class="loading-text">
-                <span class="spinner"></span>
-                {{ recognitionStatus || '识别中...' }} {{ recognitionProgress }}%
-              </span>
-            </button>
-            <button 
-              class="btn btn-secondary"
-              :disabled="isRecognizing"
-              @click="clearImage"
-            >
-              重新选择
-            </button>
-          </div>
-
-          <!-- Worker 初始化状态 -->
-          <div v-if="!workerReady && !isRecognizing" class="init-status">
-            <p>⚙️ 正在初始化 OCR 引擎（首次使用需要下载语言模型）...</p>
-            <div class="init-progress">
-              <div class="init-progress-bar" :style="{ width: initProgress + '%' }"></div>
-            </div>
-            <p class="init-hint">{{ initStatus }}</p>
-          </div>
-
-          <!-- 识别中提示 -->
-          <div v-if="isRecognizing" class="recognizing-tip">
-            <p>正在识别图片中的手机号...</p>
-          </div>
-
-          <!-- 错误提示 -->
-          <div v-if="errorMsg" class="error-box">
-            <span class="error-icon">⚠️</span>
-            <span class="error-text">{{ errorMsg }}</span>
-          </div>
+      <!-- 文件上传区域 -->
+      <div 
+        class="upload-zone"
+        :class="{ 'drag-over': isDragOver }"
+        @dragover.prevent="isDragOver = true"
+        @dragleave.prevent="isDragOver = false"
+        @drop.prevent="handleDrop"
+        @click="selectFile"
+      >
+        <input 
+          ref="fileInput"
+          type="file"
+          accept="image/*"
+          @change="handleFileChange"
+          style="display: none"
+        />
+        
+        <div v-if="!currentImage" class="upload-placeholder">
+          <div class="upload-icon">📁</div>
+          <p class="upload-text">点击选择图片或拖拽图片到此处</p>
+          <p class="upload-hint">支持 JPG、PNG、GIF、WEBP 等格式</p>
+        </div>
+        
+        <div v-else class="image-container">
+          <img :src="currentImage" alt="待识别图片" class="preview-image" />
+          <button class="close-btn" @click.stop="clearImage">✕</button>
         </div>
       </div>
 
-      <!-- 右侧：手机号列表 -->
-      <div v-if="phoneNumbers.length > 0" class="ocr-right-panel">
-        <div class="phone-card">
-          <div class="phone-section">
-            <div class="result-header">
-              <h2>📱 提取到的手机号 ({{ phoneNumbers.length }}个)</h2>
-              <div class="result-actions">
-                <button class="btn-small btn-copy-phones" @click="copyPhones">📋 复制全部</button>
-                <button class="btn-small btn-download-vcf" @click="downloadVCF">📥 导出VCF</button>
-              </div>
+      <!-- 操作按钮 -->
+      <div v-if="currentImage" class="button-group">
+        <button 
+          class="btn btn-primary"
+          :disabled="isRecognizing || !workerReady"
+          @click="startRecognition"
+        >
+          <span v-if="!isRecognizing">🔍 开始识别</span>
+          <span v-else class="loading-text">
+            <span class="spinner"></span>
+            {{ recognitionStatus || '识别中...' }} {{ recognitionProgress }}%
+          </span>
+        </button>
+        <button 
+          class="btn btn-secondary"
+          :disabled="isRecognizing"
+          @click="clearImage"
+        >
+          重新选择
+        </button>
+      </div>
+
+      <!-- Worker 初始化状态 -->
+      <div v-if="!workerReady && !isRecognizing" class="init-status">
+        <p>⚙️ 正在初始化 OCR 引擎（首次使用需要下载语言模型）...</p>
+        <div class="init-progress">
+          <div class="init-progress-bar" :style="{ width: initProgress + '%' }"></div>
+        </div>
+        <p class="init-hint">{{ initStatus }}</p>
+      </div>
+
+      <!-- 识别结果 -->
+      <div v-if="resultText || isRecognizing || phoneNumbers.length > 0" class="result-section">
+        <!-- 提取到的手机号 -->
+        <div v-if="phoneNumbers.length > 0" class="phone-section">
+          <div class="result-header">
+            <h2>📱 提取到的手机号 ({{ phoneNumbers.length }}个)</h2>
+            <div class="result-actions">
+              <button class="btn-small btn-copy-phones" @click="copyPhones">📋 复制全部</button>
+              <button class="btn-small btn-download-vcf" @click="downloadVCF">📥 导出VCF</button>
             </div>
-            <div class="phone-list">
-              <div 
-                v-for="(phone, index) in phoneNumbers" 
-                :key="index" 
-                class="phone-item"
-              >
-                <span class="phone-number">{{ phone }}</span>
-                <button class="btn-tiny btn-copy-single" @click="copySinglePhone(phone)">复制</button>
-              </div>
+          </div>
+          <div class="phone-list">
+            <div 
+              v-for="(phone, index) in phoneNumbers" 
+              :key="index" 
+              class="phone-item"
+            >
+              <span class="phone-number">{{ phone }}</span>
+              <button class="btn-tiny btn-copy-single" @click="copySinglePhone(phone)">复制</button>
             </div>
           </div>
         </div>
+
+        <!-- 完整识别文本 -->
+        <div v-if="resultText" class="text-section">
+          <div class="result-header">
+            <h2>📝 完整识别结果</h2>
+            <div class="result-actions">
+              <button class="btn-small btn-copy" @click="copyResult">📋 复制</button>
+              <button class="btn-small btn-download" @click="downloadResult">💾 下载</button>
+            </div>
+          </div>
+          <div class="result-box">
+            <pre class="result-text">{{ resultText }}</pre>
+            <div class="result-stats">
+              <span>总字符数: {{ resultText.length }}</span>
+              <span>总行数: {{ resultText.split('\n').length }}</span>
+              <span>非空字符: {{ resultText.replace(/\s/g, '').length }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div v-else-if="isRecognizing" class="recognizing-tip">
+          <p>正在识别图片中的文字内容...</p>
+        </div>
+      </div>
+
+      <!-- 错误提示 -->
+      <div v-if="errorMsg" class="error-box">
+        <span class="error-icon">⚠️</span>
+        <span class="error-text">{{ errorMsg }}</span>
       </div>
     </div>
   </div>
@@ -185,7 +200,7 @@ const showError = (msg) => {
   }, 5000)
 }
 
-// 初始化 Worker - 适配Tesseract.js 6.x，避免k.map错误
+// 初始化 Worker - 使用更稳定的方式
 const initWorker = async () => {
   if (worker) return worker
 
@@ -193,41 +208,49 @@ const initWorker = async () => {
     initStatus.value = '创建 Worker...'
     initProgress.value = 10
 
-    // 避免直接在createWorker中设置lang参数，可能导致k.map错误
-    // 先创建worker，再单独加载语言
+    // 使用 createWorker，但不直接传入语言代码
+    // 先创建 worker，然后手动加载语言
     worker = await createWorker()
-    
+
+    initStatus.value = 'Worker 创建成功'
+    initProgress.value = 20
+
+    // 手动加载语言
     initStatus.value = '加载语言模型...'
+    await worker.loadLanguage('chi_sim+eng')
+    
     initProgress.value = 50
     
-    // 分别调用loadLanguage和initialize，避免参数处理错误
-    await worker.loadLanguage('eng')
-    await worker.initialize('eng')
+    // 初始化 worker
+    initStatus.value = '初始化 Worker...'
+    await worker.initialize('chi_sim+eng')
+    
+    initProgress.value = 80
 
-    initStatus.value = 'Worker 初始化完成'
-    initProgress.value = 100
+    // 验证 worker 是否可用
+    if (!worker) {
+      throw new Error('Worker 创建失败')
+    }
+
+    // 等待一下确保完全准备好
+    await new Promise(resolve => setTimeout(resolve, 300))
+
     workerReady.value = true
+    initProgress.value = 100
+    initStatus.value = '初始化完成，可以开始识别'
 
     return worker
   } catch (err) {
     console.error('Worker 初始化失败:', err)
-    console.error('错误详情:', err.stack)
-    
-    showError('OCR 引擎初始化失败: ' + (err.message || '未知错误'))
+    showError('OCR 引擎初始化失败: ' + err.message)
     worker = null
     workerReady.value = false
-    return null
+    throw err
   }
 }
 
-// 处理 Worker 日志 - 添加类型检查避免错误
+// 处理 Worker 日志
 const handleWorkerLog = (m) => {
-  // 确保m是对象且有status属性
-  if (!m || typeof m !== 'object' || !m.status) {
-    console.warn('Invalid worker log format:', m)
-    return
-  }
-  
   const status = m.status
   
   if (status === 'loading tesseract core') {
@@ -237,7 +260,7 @@ const handleWorkerLog = (m) => {
     initProgress.value = 25
     initStatus.value = '初始化 Tesseract...'
   } else if (status === 'loading language traineddata') {
-    const progress = typeof m.progress === 'number' ? m.progress : 0
+    const progress = m.progress || 0
     initProgress.value = 30 + Math.round(progress * 50)
     initStatus.value = `加载语言模型... ${Math.round(progress * 100)}%`
   } else if (status === 'initializing api') {
@@ -245,7 +268,7 @@ const handleWorkerLog = (m) => {
     initStatus.value = '初始化 API...'
   } else if (status === 'recognizing text') {
     // 识别进度
-    const progress = typeof m.progress === 'number' ? m.progress : 0
+    const progress = m.progress || 0
     recognitionProgress.value = Math.round(progress * 100)
   }
 }
@@ -538,6 +561,45 @@ const extractPhoneNumbers = (text) => {
   })
 }
 
+// 复制结果
+const copyResult = async () => {
+  try {
+    await navigator.clipboard.writeText(resultText.value)
+    const btn = document.querySelector('.btn-copy')
+    if (btn) {
+      const original = btn.textContent
+      btn.textContent = '✓ 已复制'
+      setTimeout(() => {
+        btn.textContent = original
+      }, 2000)
+    }
+  } catch (err) {
+    showError('复制失败，请手动复制')
+  }
+}
+
+// 下载结果
+const downloadResult = () => {
+  const blob = new Blob([resultText.value], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `OCR识别结果_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  
+  const btn = document.querySelector('.btn-download')
+  if (btn) {
+    const original = btn.textContent
+    btn.textContent = '✓ 已下载'
+    setTimeout(() => {
+      btn.textContent = original
+    }, 2000)
+  }
+}
+
 // 复制所有手机号
 const copyPhones = async () => {
   try {
@@ -659,194 +721,73 @@ const downloadVCF = () => {
 }
 
 onMounted(() => {
-  // 组件挂载时开始初始化OCR引擎
-  initWorker()
+  // 使用直接调用方式，不需要预加载
 })
 
 onBeforeUnmount(() => {
-  // 组件销毁时清理worker
-  if (worker) {
-    worker.terminate()
-      .then(() => console.log('Worker terminated'))
-      .catch(err => console.error('Worker termination error:', err))
-  }
+  // 使用直接调用方式，不需要手动销毁 worker
 })
 </script>
 
 <style scoped>
-/* 基础样式重置 */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-/* 现代简洁背景 */
 .ocr-container {
-  width: 100%;
   min-height: 100vh;
   padding: 2rem 1rem;
-  margin: 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  position: relative;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
 }
 
-.ocr-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  background: 
-    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* 左右布局容器 */
-.ocr-layout {
-  display: flex;
-  gap: 1.5rem;
-  max-width: 1400px;
-  margin: 0 auto;
-  align-items: flex-start;
-  position: relative;
-  z-index: 1;
-}
-
-/* 左侧面板 - 上传和识别区域 */
-.ocr-left-panel {
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
-  max-height: calc(100vh - 4rem);
-  padding-right: 0.5rem;
-}
-
-/* 右侧面板 - 手机号列表 */
-.ocr-right-panel {
-  width: 400px;
-  flex-shrink: 0;
-  max-height: calc(100vh - 4rem);
-  position: sticky;
-  top: 2rem;
-}
-
-
-/* 卡片容器 - 现代毛玻璃效果 */
 .ocr-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 16px;
   padding: 2.5rem;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  position: relative;
-  z-index: 1;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
-/* 右侧手机号卡片 */
-.phone-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 24px;
-  padding: 2rem;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  position: relative;
-  z-index: 1;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 手机号占位符 */
-.phone-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  text-align: center;
-  height: 100%;
-  min-height: 400px;
-}
-
-.placeholder-icon {
-  font-size: 4rem;
-  margin-bottom: 1.5rem;
-  opacity: 0.3;
-}
-
-.placeholder-text {
-  color: #999;
-  font-size: 1rem;
-  opacity: 0.7;
-}
-
-/* 标题样式 */
 .title {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 700;
   color: #1a1a1a;
   margin: 0 0 0.5rem 0;
   text-align: center;
-  letter-spacing: -0.5px;
 }
 
-/* 副标题样式 */
 .subtitle {
   text-align: center;
   color: #666;
   margin: 0 0 2rem 0;
   font-size: 1rem;
-  font-weight: 400;
 }
 
-/* 上传区域 - 现代简洁设计 */
 .upload-zone {
-  border: 2px dashed #d1d5db;
-  border-radius: 16px;
+  border: 3px dashed #ddd;
+  border-radius: 12px;
   padding: 3rem 2rem;
-  min-height: 280px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: #fafafa;
+  min-height: 250px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  background: #f9fafb;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  overflow: hidden;
 }
 
 .upload-zone:hover {
   border-color: #667eea;
-  background: #f3f4f6;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  background: #f0f4ff;
 }
 
 .upload-zone.drag-over {
   border-color: #667eea;
-  background: #ede9fe;
-  border-style: solid;
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+  background: #e8edff;
+  transform: scale(1.01);
 }
 
 .upload-placeholder {
-  color: #6b7280;
-  text-align: center;
-  z-index: 1;
+  color: #666;
 }
 
 .upload-icon {
@@ -858,184 +799,160 @@ onBeforeUnmount(() => {
   font-size: 1.1rem;
   font-weight: 500;
   margin: 0.5rem 0;
-  color: #1f2937;
+  color: #333;
 }
 
 .upload-hint {
-  font-size: 0.875rem;
-  color: #9ca3af;
+  font-size: 0.9rem;
+  color: #999;
   margin: 0.5rem 0 0 0;
 }
 
-/* 图片预览容器 */
 .image-container {
   position: relative;
   max-width: 100%;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
 }
 
 .preview-image {
   max-width: 100%;
   max-height: 500px;
-  display: block;
-  transition: transform 0.3s ease;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.image-container:hover .preview-image {
-  transform: scale(1.01);
-}
-
-/* 关闭按钮 */
 .close-btn {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 32px;
-  height: 32px;
+  top: -12px;
+  right: -12px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(10px);
+  background: #ff4444;
   color: white;
   border: none;
-  font-size: 18px;
+  font-size: 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
 }
 
 .close-btn:hover {
-  background: rgba(239, 68, 68, 0.9);
   transform: scale(1.1);
 }
 
-/* 按钮组 */
 .button-group {
   display: flex;
   gap: 1rem;
   margin-top: 1.5rem;
   justify-content: center;
-  flex-wrap: wrap;
 }
 
-/* 按钮样式 - 现代简洁设计 */
 .btn {
-  padding: 0.75rem 1.5rem;
+  padding: 0.875rem 2rem;
   font-size: 1rem;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.2s ease;
+  transition: all 0.3s;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-/* 主按钮 */
 .btn-primary {
-  background: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #5568d3;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
 }
 
-/* 次要按钮 */
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #e5e7eb;
+  background: #f0f0f0;
+  color: #333;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #e5e7eb;
-  border-color: #d1d5db;
+  background: #e0e0e0;
 }
 
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-  animation: none;
-  box-shadow: none;
-}
-
-/* 加载动画 */
 .loading-text {
   display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .spinner {
-  width: 20px;
-  height: 20px;
-  border: 3px solid rgba(102, 126, 234, 0.2);
-  border-top-color: #667eea;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-/* 初始化状态 */
 .init-status {
   margin-top: 1.5rem;
   padding: 1.5rem;
-  background: #eff6ff;
-  border-radius: 12px;
+  background: #e3f2fd;
+  border-radius: 8px;
   text-align: center;
-  border: 1px solid #bfdbfe;
 }
 
 .init-status p {
   margin: 0.5rem 0;
-  color: #1e40af;
+  color: #1976d2;
   font-weight: 500;
-  font-size: 1rem;
 }
 
 .init-progress {
   width: 100%;
-  height: 8px;
-  background: #dbeafe;
-  border-radius: 4px;
+  height: 6px;
+  background: #bbdefb;
+  border-radius: 3px;
   overflow: hidden;
   margin: 1rem 0;
-  position: relative;
 }
 
 .init-progress-bar {
   height: 100%;
-  background: #3b82f6;
-  transition: width 0.3s ease;
-  position: relative;
-  border-radius: 4px;
+  background: linear-gradient(90deg, #2196f3, #1976d2);
+  transition: width 0.3s;
 }
 
 .init-hint {
   font-size: 0.875rem;
-  color: #60a5fa;
+  color: #666;
   font-style: italic;
   margin-top: 0.5rem;
 }
 
+.result-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #eee;
+}
+
 .result-header {
+  display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   flex-wrap: wrap;
   gap: 1rem;
 }
@@ -1043,45 +960,86 @@ onBeforeUnmount(() => {
 .result-header h2 {
   margin: 0;
   font-size: 1.5rem;
-  color: #1f2937;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  color: #1a1a1a;
 }
 
 .result-actions {
   display: flex;
+  gap: 0.5rem;
 }
 
-/* 小按钮样式 */
 .btn-small {
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-copy {
+  background: #4caf50;
+  color: white;
+}
+
+.btn-copy:hover {
+  background: #45a049;
+}
+
+.btn-download {
+  background: #2196f3;
+  color: white;
+}
+
+.btn-download:hover {
+  background: #1976d2;
+}
+
+.result-box {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid #e9ecef;
+}
+
+.result-text {
+  width: 100%;
+  min-height: 300px;
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 1rem;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: 'Courier New', 'Consolas', monospace;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0 0 1rem 0;
+  color: #333;
+}
+
+.result-stats {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.875rem;
+  color: #666;
+  flex-wrap: wrap;
 }
 
 .recognizing-tip {
   text-align: center;
   padding: 2rem;
-  color: #6b7280;
-  font-size: 1rem;
+  color: #666;
 }
 
-/* 错误提示 */
 .error-box {
   margin-top: 1.5rem;
-  padding: 1rem 1.25rem;
-  background: #fef2f2;
-  border-left: 4px solid #ef4444;
-  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  background: #ffebee;
+  border-left: 4px solid #f44336;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -1092,224 +1050,99 @@ onBeforeUnmount(() => {
 }
 
 .error-text {
-  color: #dc2626;
+  color: #c62828;
   font-weight: 500;
-  flex: 1;
 }
 
-/* 手机号部分 */
 .phone-section {
-  flex: 1;
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid #eee;
+}
+
+.phone-list {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-
-.phone-section .result-header {
-  flex-shrink: 0;
-  margin-bottom: 1.5rem;
-}
-
-.phone-section .result-header h2 {
-  font-size: 1.25rem;
-  margin-bottom: 1rem;
-  color: #1f2937;
-  font-weight: 600;
-}
-
-.phone-section .result-actions {
   gap: 0.75rem;
-  flex-direction: row;
-}
-
-.phone-section .result-actions .btn-small {
-  width: 50%;
-  justify-content: center;
-}
-
-.phone-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 0.75rem;
-  margin-top: 0;
-  max-height: calc(100vh - 300px);
-  min-height: 200px;
-}
-
-/* 手机号列表滚动条样式 */
-.phone-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.phone-list::-webkit-scrollbar-track {
-  background: #f3f4f6;
-  border-radius: 4px;
-  margin: 4px 0;
-}
-
-.phone-list::-webkit-scrollbar-thumb {
-  background: #9ca3af;
-  border-radius: 4px;
-  border: 2px solid #f3f4f6;
-}
-
-.phone-list::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
-}
-
-/* Firefox 滚动条样式 */
-.phone-list {
-  scrollbar-width: thin;
-  scrollbar-color: #9ca3af #f3f4f6;
-}
-
-/* 左侧面板滚动条样式 */
-.ocr-left-panel::-webkit-scrollbar {
-  width: 6px;
-}
-
-.ocr-left-panel::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 3px;
-}
-
-.ocr-left-panel::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-}
-
-.ocr-left-panel::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
+  margin-top: 1rem;
 }
 
 .phone-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.25rem;
-  background: white;
-  border-radius: 10px;
-  border-left: 3px solid #10b981;
-  transition: all 0.2s ease;
-  border: 1px solid #e5e7eb;
+  padding: 1rem 1.5rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #4caf50;
+  transition: all 0.2s;
 }
 
 .phone-item:hover {
-  background: #f9fafb;
+  background: #e9ecef;
   transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-color: #10b981;
 }
 
 .phone-number {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #1f2937;
-  font-family: 'Courier New', 'Consolas', monospace;
-  letter-spacing: 0.5px;
+  color: #1a1a1a;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
 }
 
-/* 小按钮样式 */
 .btn-tiny {
-  padding: 0.375rem 0.875rem;
-  font-size: 0.8125rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-weight: 500;
+  transition: all 0.2s;
 }
 
 .btn-copy-single {
-  background: #10b981;
+  background: #4caf50;
   color: white;
 }
 
 .btn-copy-single:hover {
-  background: #059669;
-  transform: translateY(-1px);
+  background: #45a049;
 }
 
 .btn-copy-phones {
-  background: #f59e0b;
+  background: #ff9800;
   color: white;
 }
 
 .btn-copy-phones:hover {
-  background: #d97706;
-  transform: translateY(-1px);
+  background: #f57c00;
 }
 
 .btn-download-vcf {
-  background: #8b5cf6;
+  background: #9c27b0;
   color: white;
 }
 
 .btn-download-vcf:hover {
-  background: #7c3aed;
-  transform: translateY(-1px);
+  background: #7b1fa2;
 }
 
-
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .ocr-layout {
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .ocr-left-panel {
-    max-height: none;
-    padding-right: 0;
-  }
-
-  .ocr-right-panel {
-    width: 100%;
-    position: static;
-    max-height: none;
-  }
-
-  .phone-card {
-    height: auto;
-    min-height: 400px;
-  }
-
-  .phone-list {
-    max-height: 600px;
-    min-height: 300px;
-  }
+.text-section {
+  margin-top: 2rem;
 }
 
 @media (max-width: 768px) {
-  .ocr-container {
-    padding: 1rem 0.5rem;
-  }
-
-  .ocr-card,
-  .phone-card {
-    padding: 2rem 1.5rem;
-    border-radius: 20px;
+  .ocr-card {
+    padding: 1.5rem;
   }
 
   .title {
-    font-size: 2rem;
-  }
-
-  .subtitle {
-    font-size: 1rem;
+    font-size: 1.5rem;
   }
 
   .upload-zone {
     padding: 2rem 1rem;
-    min-height: 220px;
-  }
-
-  .upload-icon {
-    font-size: 4rem;
+    min-height: 200px;
   }
 
   .button-group {
@@ -1318,35 +1151,11 @@ onBeforeUnmount(() => {
 
   .btn {
     width: 100%;
-    justify-content: center;
   }
 
   .result-header {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .result-actions {
-    width: 100%;
-  }
-
-  .btn-small {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .phone-item {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: stretch;
-  }
-
-  .phone-number {
-    text-align: center;
-  }
-
-  .btn-tiny {
-    width: 100%;
   }
 }
 </style>
